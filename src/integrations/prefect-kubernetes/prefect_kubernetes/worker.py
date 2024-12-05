@@ -875,7 +875,7 @@ class KubernetesWorker(BaseWorker):
             follow=True,
             _preload_content=False,
             container="prefect-job",
-            _request_timeout=timeout,
+            _request_timeout=3600,
         )
         try:
             async for line in logs.content:
