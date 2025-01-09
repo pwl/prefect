@@ -932,6 +932,10 @@ class KubernetesWorker(BaseWorker):
                         watch_kwargs["resource_version"] = resource_version
                     else:
                         raise
+                except aiohttp.ClientPayloadError as e:
+                    if "Response payload is not completed" in str(e):
+                        continue
+                    raise
 
     async def _monitor_job_events(self, batch_client, job_name, logger, configuration):
         job = await batch_client.read_namespaced_job(
