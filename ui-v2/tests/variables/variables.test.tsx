@@ -1,4 +1,8 @@
 import "./mocks";
+import { Toaster } from "@/components/ui/toaster";
+import { VariablesDataTable } from "@/components/variables/data-table";
+import { router } from "@/router";
+import { RouterProvider } from "@tanstack/react-router";
 import {
 	getByLabelText,
 	getByTestId,
@@ -6,34 +10,25 @@ import {
 	render,
 	screen,
 } from "@testing-library/react";
-import { VariablesDataTable } from "@/components/variables/data-table";
 import userEvent from "@testing-library/user-event";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { http, HttpResponse } from "msw";
 import {
-	describe,
-	it,
-	expect,
-	vi,
 	afterEach,
-	beforeEach,
 	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
 } from "vitest";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { server } from "../mocks/node";
-import { HttpResponse } from "msw";
-import { http } from "msw";
-import { router } from "@/router";
-import { RouterProvider } from "@tanstack/react-router";
 
 const renderVariablesPage = async () => {
 	const user = userEvent.setup();
-	const queryClient = new QueryClient();
 	// Render with router provider
-	const result = render(
-		<QueryClientProvider client={queryClient}>
-			<RouterProvider router={router} />
-		</QueryClientProvider>,
-	);
+	const result = render(<RouterProvider router={router} />, {
+		wrapper: createWrapper(),
+	});
 	await user.click(screen.getByRole("link", { name: "Variables" }));
 	return result;
 };
@@ -89,6 +84,7 @@ describe("Variables page", () => {
 			await user.click(screen.getByRole("button", { name: "Create" }));
 
 			expect(screen.getByText("Variable created")).toBeVisible();
+			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 		});
 
 		it("should show validation errors", async () => {
@@ -114,7 +110,7 @@ describe("Variables page", () => {
 
 		it("should show error when API call fails with detail", async () => {
 			server.use(
-				http.post("http://localhost:4200/api/variables/", () => {
+				http.post(buildApiUrl("/variables/"), () => {
 					return HttpResponse.json(
 						{ detail: "Failed to create variable" },
 						{ status: 500 },
@@ -133,7 +129,7 @@ describe("Variables page", () => {
 
 		it("should show error when API call fails without detail", async () => {
 			server.use(
-				http.post("http://localhost:4200/api/variables/", () => {
+				http.post(buildApiUrl("/variables/"), () => {
 					return HttpResponse.json(
 						{ error: "Internal server error" },
 						{ status: 500 },
@@ -171,10 +167,10 @@ describe("Variables page", () => {
 				},
 			];
 			server.use(
-				http.post("http://localhost:4200/api/variables/filter", () => {
+				http.post(buildApiUrl("/variables/filter"), () => {
 					return HttpResponse.json(variables);
 				}),
-				http.post("http://localhost:4200/api/variables/count", () => {
+				http.post(buildApiUrl("/variables/count"), () => {
 					return HttpResponse.json(1);
 				}),
 			);
@@ -207,16 +203,16 @@ describe("Variables page", () => {
 				},
 			];
 			server.use(
-				http.patch("http://localhost:4200/api/variables/:id", () => {
+				http.patch(buildApiUrl("/variables/:id"), () => {
 					return HttpResponse.json(
 						{ detail: "Failed to update variable. Here's some detail..." },
 						{ status: 500 },
 					);
 				}),
-				http.post("http://localhost:4200/api/variables/filter", () => {
+				http.post(buildApiUrl("/variables/filter"), () => {
 					return HttpResponse.json(variables);
 				}),
-				http.post("http://localhost:4200/api/variables/count", () => {
+				http.post(buildApiUrl("/variables/count"), () => {
 					return HttpResponse.json(1);
 				}),
 			);
@@ -251,16 +247,16 @@ describe("Variables page", () => {
 			},
 		];
 		server.use(
-			http.patch("http://localhost:4200/api/variables/:id", () => {
+			http.patch(buildApiUrl("/variables/:id"), () => {
 				return HttpResponse.json(
 					{ error: "Internal server error" },
 					{ status: 500 },
 				);
 			}),
-			http.post("http://localhost:4200/api/variables/filter", () => {
+			http.post(buildApiUrl("/variables/filter"), () => {
 				return HttpResponse.json(variables);
 			}),
-			http.post("http://localhost:4200/api/variables/count", () => {
+			http.post(buildApiUrl("/variables/count"), () => {
 				return HttpResponse.json(1);
 			}),
 		);
@@ -336,21 +332,19 @@ describe("Variables page", () => {
 					tags: ["tag2"],
 				},
 			];
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={2}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={vi.fn()}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={2}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 			expect(screen.getByText("2 Variables")).toBeVisible();
 			// Table headers
@@ -382,21 +376,19 @@ describe("Variables page", () => {
 			}));
 			const onPaginationChange = vi.fn();
 			const user = userEvent.setup();
-			const queryClient = new QueryClient();
 			const { rerender } = render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables.slice(0, 10)}
-						currentVariableCount={20}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={onPaginationChange}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables.slice(0, 10)}
+					currentVariableCount={20}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={onPaginationChange}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 			expect(screen.getByText("20 Variables")).toBeVisible();
 
@@ -413,19 +405,17 @@ describe("Variables page", () => {
 			expect(onPaginationChange).toHaveBeenCalled();
 
 			rerender(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables.slice(10, 20)}
-						currentVariableCount={20}
-						pagination={{ pageIndex: 1, pageSize: 10 }}
-						onPaginationChange={onPaginationChange}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables.slice(10, 20)}
+					currentVariableCount={20}
+					pagination={{ pageIndex: 1, pageSize: 10 }}
+					onPaginationChange={onPaginationChange}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
 			);
 
 			expect(screen.getByText("Page 2 of 2")).toBeVisible();
@@ -453,21 +443,19 @@ describe("Variables page", () => {
 					tags: ["tag1"],
 				},
 			];
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={1}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={vi.fn()}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 
 			await user.click(screen.getByRole("button", { expanded: false }));
@@ -487,21 +475,19 @@ describe("Variables page", () => {
 					tags: ["tag1"],
 				},
 			];
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={1}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={vi.fn()}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 
 			await user.click(screen.getByRole("button", { expanded: false }));
@@ -521,21 +507,19 @@ describe("Variables page", () => {
 					tags: ["tag1"],
 				},
 			];
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={1}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={vi.fn()}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 
 			await user.click(screen.getByRole("button", { expanded: false }));
@@ -555,9 +539,8 @@ describe("Variables page", () => {
 					tags: ["tag1"],
 				},
 			];
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
+				<>
 					<Toaster />
 					<VariablesDataTable
 						variables={variables}
@@ -570,7 +553,8 @@ describe("Variables page", () => {
 						onSortingChange={vi.fn()}
 						onVariableEdit={vi.fn()}
 					/>
-				</QueryClientProvider>,
+				</>,
+				{ wrapper: createWrapper() },
 			);
 
 			await user.click(screen.getByRole("button", { expanded: false }));
@@ -591,21 +575,19 @@ describe("Variables page", () => {
 				},
 			];
 			const onColumnFiltersChange = vi.fn();
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={1}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={vi.fn()}
-						columnFilters={[{ id: "name", value: "start value" }]}
-						onColumnFiltersChange={onColumnFiltersChange}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
+					columnFilters={[{ id: "name", value: "start value" }]}
+					onColumnFiltersChange={onColumnFiltersChange}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 
 			// Clear any initial calls from mounting
@@ -636,21 +618,19 @@ describe("Variables page", () => {
 			];
 
 			const onColumnFiltersChange = vi.fn();
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={1}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={vi.fn()}
-						columnFilters={[{ id: "tags", value: ["tag2"] }]}
-						onColumnFiltersChange={onColumnFiltersChange}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
+					columnFilters={[{ id: "tags", value: ["tag2"] }]}
+					onColumnFiltersChange={onColumnFiltersChange}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 
 			// Clear any initial calls from mounting
@@ -681,21 +661,19 @@ describe("Variables page", () => {
 			];
 
 			const onSortingChange = vi.fn();
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={1}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={vi.fn()}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={onSortingChange}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={onSortingChange}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 
 			const select = screen.getByRole("combobox", {
@@ -725,21 +703,19 @@ describe("Variables page", () => {
 				},
 			];
 			const onPaginationChange = vi.fn();
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={1}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={onPaginationChange}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={onPaginationChange}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 
 			const select = screen.getByRole("combobox", {

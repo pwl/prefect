@@ -2,10 +2,10 @@ from typing import List, Optional, Tuple, cast
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, PrivateAttr
-from pydantic_extra_types.pendulum_dt import DateTime
+from pydantic import Field
 
 from prefect._internal.schemas.bases import PrefectBaseModel
+from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification
@@ -41,18 +41,12 @@ class AutomationFilter(PrefectBaseModel):
 class EventDataFilter(PrefectBaseModel, extra="forbid"):  # type: ignore[call-arg]
     """A base class for filtering event data."""
 
-    _top_level_filter: Optional["EventFilter"] = PrivateAttr(None)
-
     def get_filters(self) -> List["EventDataFilter"]:
         filters: List["EventDataFilter"] = [
             filter
-            for filter in [
-                getattr(self, name) for name, field in self.model_fields.items()
-            ]
+            for filter in [getattr(self, name) for name in self.model_fields]
             if isinstance(filter, EventDataFilter)
         ]
-        for filter in filters:
-            filter._top_level_filter = self._top_level_filter
         return filters
 
     def includes(self, event: Event) -> bool:

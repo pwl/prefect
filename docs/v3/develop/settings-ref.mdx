@@ -179,6 +179,18 @@ The URL of the Prefect API. If not set, the client will attempt to infer it.
 **Supported environment variables**:
 `PREFECT_API_URL`
 
+### `auth_string`
+The auth string used for basic authentication with a self-hosted Prefect API. Should be kept secret.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `api.auth_string`
+
+**Supported environment variables**:
+`PREFECT_API_AUTH_STRING`
+
 ### `key`
 The API key used for authentication with the Prefect API. Should be kept secret.
 
@@ -401,6 +413,18 @@ API URL for Prefect Cloud. Used for authentication with Prefect Cloud.
 **Supported environment variables**:
 `PREFECT_CLOUD_API_URL`
 
+### `enable_orchestration_telemetry`
+Whether or not to enable orchestration telemetry.
+
+**Type**: `boolean`
+
+**Default**: `True`
+
+**TOML dotted key path**: `cloud.enable_orchestration_telemetry`
+
+**Supported environment variables**:
+`PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY`
+
 ### `ui_url`
 The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it.
 
@@ -455,17 +479,17 @@ If `True`, warn on usage of experimental features.
 **Supported environment variables**:
 `PREFECT_EXPERIMENTS_WARN`, `PREFECT_EXPERIMENTAL_WARN`
 
-### `telemetry_enabled`
-Enables sending telemetry to Prefect Cloud.
+### `lineage_events_enabled`
+If `True`, enables emitting lineage events. Set to `False` to disable lineage event emission.
 
 **Type**: `boolean`
 
 **Default**: `False`
 
-**TOML dotted key path**: `experiments.telemetry_enabled`
+**TOML dotted key path**: `experiments.lineage_events_enabled`
 
 **Supported environment variables**:
-`PREFECT_EXPERIMENTS_TELEMETRY_ENABLED`
+`PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED`
 
 ---
 ## FlowsSettings
@@ -829,6 +853,18 @@ Number of seconds a runner should wait between queries for scheduled work.
 **Supported environment variables**:
 `PREFECT_RUNNER_POLL_FREQUENCY`
 
+### `heartbeat_frequency`
+Number of seconds a runner should wait between heartbeats for flow runs.
+
+**Type**: `integer | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `runner.heartbeat_frequency`
+
+**Supported environment variables**:
+`PREFECT_RUNNER_HEARTBEAT_FREQUENCY`
+
 ### `server`
 
 **Type**: [RunnerServerSettings](#runnerserversettings)
@@ -838,6 +874,18 @@ Number of seconds a runner should wait between queries for scheduled work.
 ---
 ## ServerAPISettings
 Settings for controlling API server behavior
+### `auth_string`
+A string to use for basic authentication with the API; typically in the form 'user:password' but can be any string.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.api.auth_string`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_AUTH_STRING`
+
 ### `host`
 The API's host address (defaults to `127.0.0.1`).
 
@@ -1127,7 +1175,7 @@ A connection timeout, in seconds, applied to database connections. Defaults to `
 
 **Type**: `number | None`
 
-**Default**: `5`
+**Default**: `5.0`
 
 **TOML dotted key path**: `server.database.connection_timeout`
 

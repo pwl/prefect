@@ -1,5 +1,7 @@
 import asyncio
-from typing import Any, Dict, Generic, Iterable, Optional, Type, TypeVar
+from collections.abc import Iterable
+from logging import Logger
+from typing import Any, Generic, Optional, TypeVar
 
 import orjson
 import websockets
@@ -8,10 +10,11 @@ from starlette.status import WS_1008_POLICY_VIOLATION
 from typing_extensions import Self
 
 from prefect._internal.schemas.bases import IDBaseModel
+from prefect.events.clients import websocket_connect
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_API_KEY
 
-logger = get_logger(__name__)
+logger: Logger = get_logger(__name__)
 
 S = TypeVar("S", bound=IDBaseModel)
 
@@ -19,7 +22,7 @@ S = TypeVar("S", bound=IDBaseModel)
 class Subscription(Generic[S]):
     def __init__(
         self,
-        model: Type[S],
+        model: type[S],
         path: str,
         keys: Iterable[str],
         client_id: Optional[str] = None,
@@ -28,11 +31,11 @@ class Subscription(Generic[S]):
         self.model = model
         self.client_id = client_id
         base_url = base_url.replace("http", "ws", 1) if base_url else None
-        self.subscription_url = f"{base_url}{path}"
+        self.subscription_url: str = f"{base_url}{path}"
 
-        self.keys = list(keys)
+        self.keys: list[str] = list(keys)
 
-        self._connect = websockets.connect(
+        self._connect = websocket_connect(
             self.subscription_url,
             subprotocols=[websockets.Subprotocol("prefect")],
         )
@@ -78,10 +81,10 @@ class Subscription(Generic[S]):
                 ).decode()
             )
 
-            auth: Dict[str, Any] = orjson.loads(await websocket.recv())
+            auth: dict[str, Any] = orjson.loads(await websocket.recv())
             assert auth["type"] == "auth_success", auth.get("message")
 
-            message = {"type": "subscribe", "keys": self.keys}
+            message: dict[str, Any] = {"type": "subscribe", "keys": self.keys}
             if self.client_id:
                 message.update({"client_id": self.client_id})
 

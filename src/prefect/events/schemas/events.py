@@ -2,6 +2,7 @@ import copy
 from collections import defaultdict
 from typing import (
     Any,
+    ClassVar,
     Dict,
     Iterable,
     List,
@@ -20,7 +21,6 @@ from pydantic import (
     RootModel,
     model_validator,
 )
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Annotated, Self
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -28,6 +28,7 @@ from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
 )
+from prefect.types import DateTime
 
 from .labelling import Labelled
 
@@ -108,7 +109,7 @@ def _validate_related_resources(value) -> List:
 class Event(PrefectBaseModel):
     """The client-side view of an event that has happened to a Resource"""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore")
 
     occurred: DateTime = Field(
         default_factory=lambda: DateTime.now("UTC"),
@@ -177,7 +178,7 @@ class ReceivedEvent(Event):
     """The server-side view of an event that has happened to a Resource after it has
     been received by the server"""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
 
     received: DateTime = Field(
         ...,

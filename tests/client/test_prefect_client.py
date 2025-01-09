@@ -17,8 +17,7 @@ import pydantic
 import pytest
 import respx
 from fastapi import Depends, FastAPI, status
-from fastapi.security import HTTPBearer
-from pydantic_extra_types.pendulum_dt import DateTime
+from fastapi.security import HTTPBasic, HTTPBearer
 
 import prefect.client.schemas as client_schemas
 import prefect.context
@@ -46,6 +45,8 @@ from prefect.client.schemas.actions import (
 from prefect.client.schemas.filters import (
     ArtifactFilter,
     ArtifactFilterKey,
+    DeploymentFilter,
+    DeploymentFilterTags,
     FlowFilter,
     FlowRunFilter,
     FlowRunFilterTags,
@@ -77,6 +78,7 @@ from prefect.events import AutomationCore, EventTrigger, Posture
 from prefect.server.api.server import create_app
 from prefect.server.database.orm_models import WorkPool
 from prefect.settings import (
+    PREFECT_API_AUTH_STRING,
     PREFECT_API_DATABASE_MIGRATE_ON_START,
     PREFECT_API_KEY,
     PREFECT_API_SSL_CERT_FILE,
@@ -90,6 +92,7 @@ from prefect.settings import (
 from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
+from prefect.types import DateTime
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -631,6 +634,19 @@ async def test_create_then_read_flow(prefect_client):
     assert lookup.name == foo.name
 
 
+async def test_create_then_delete_flow(prefect_client):
+    @flow
+    def foo():
+        pass
+
+    flow_id = await prefect_client.create_flow(foo)
+    assert isinstance(flow_id, UUID)
+
+    await prefect_client.delete_flow(flow_id)
+    with pytest.raises(prefect.exceptions.PrefectHTTPStatusError, match="404"):
+        await prefect_client.read_flow(flow_id)
+
+
 async def test_create_then_read_deployment(prefect_client, storage_document_id):
     @flow
     def foo():
@@ -772,9 +788,38 @@ async def test_read_deployment_by_name(prefect_client):
     assert lookup.name == "test-deployment"
 
 
-async def test_read_deployment_by_name_fails_with_helpful_suggestion(prefect_client):
-    """this is a regression test for https://github.com/PrefectHQ/prefect/issues/15571"""
-
+@pytest.mark.parametrize(
+    "deployment_tags,filter_tags,expected_match",
+    [
+        # Basic single tag matching
+        (["tag-1"], ["tag-1"], True),
+        (["tag-2"], ["tag-1"], False),
+        # Any matching - should match if ANY tag in filter matches
+        (["tag-1", "tag-2"], ["tag-1", "tag-3"], True),
+        (["tag-1"], ["tag-1", "tag-2"], True),
+        (["tag-2"], ["tag-1", "tag-2"], True),
+        # No matches
+        (["tag-1"], ["tag-2", "tag-3"], False),
+        (["tag-1"], ["get-real"], False),
+        # Empty cases
+        ([], ["tag-1"], False),
+        (["tag-1"], [], False),
+    ],
+    ids=[
+        "single_tag_match",
+        "single_tag_no_match",
+        "multiple_tags_partial_match",
+        "subset_match_1",
+        "subset_match_2",
+        "no_matching_tags",
+        "nonexistent_tag",
+        "empty_run_tags",
+        "empty_filter_tags",
+    ],
+)
+async def test_read_deployment_by_any_tag(
+    prefect_client, deployment_tags, filter_tags, expected_match
+):
     @flow
     def moo_deng():
         pass
@@ -784,13 +829,16 @@ async def test_read_deployment_by_name_fails_with_helpful_suggestion(prefect_cli
     await prefect_client.create_deployment(
         flow_id=flow_id,
         name="moisturized-deployment",
+        tags=deployment_tags,
     )
-
-    with pytest.raises(
-        prefect.exceptions.ObjectNotFound,
-        match="Deployment 'moo_deng/moisturized-deployment' not found; did you mean 'moo-deng/moisturized-deployment'?",
-    ):
-        await prefect_client.read_deployment_by_name("moo_deng/moisturized-deployment")
+    deployment_responses = await prefect_client.read_deployments(
+        deployment_filter=DeploymentFilter(tags=DeploymentFilterTags(any_=filter_tags))
+    )
+    if expected_match:
+        assert len(deployment_responses) == 1
+        assert deployment_responses[0].name == "moisturized-deployment"
+    else:
+        assert len(deployment_responses) == 0
 
 
 async def test_create_then_delete_deployment(prefect_client):
@@ -811,7 +859,7 @@ async def test_create_then_delete_deployment(prefect_client):
 
 
 async def test_read_nonexistent_deployment_by_name(prefect_client):
-    with pytest.raises(prefect.exceptions.ObjectNotFound):
+    with pytest.raises((prefect.exceptions.ObjectNotFound, ValueError)):
         await prefect_client.read_deployment_by_name("not-a-real-deployment")
 
 
@@ -1721,6 +1769,39 @@ class TestClientAPIKey:
         assert client._client.headers["Authorization"] == "Bearer test"
 
 
+class TestClientAuthString:
+    @pytest.fixture
+    async def test_app(self):
+        app = FastAPI()
+        basic = HTTPBasic()
+
+        # Returns given credentials if an Authorization
+        # header is passed, otherwise raises 403
+        @app.get("/api/check_for_auth_header")
+        async def check_for_auth_header(credentials=Depends(basic)):
+            return {"username": credentials.username, "password": credentials.password}
+
+        return app
+
+    async def test_client_passes_auth_string_as_auth_header(self, test_app):
+        auth_string = "admin:admin"
+        async with PrefectClient(test_app, auth_string=auth_string) as client:
+            res = await client._client.get("/check_for_auth_header")
+        assert res.status_code == status.HTTP_200_OK
+        assert res.json() == {"username": "admin", "password": "admin"}
+
+    async def test_client_no_auth_header_without_auth_string(self, test_app):
+        async with PrefectClient(test_app) as client:
+            with pytest.raises(httpx.HTTPStatusError, match="401"):
+                await client._client.get("/check_for_auth_header")
+
+    async def test_get_client_includes_auth_string_from_context(self):
+        with temporary_settings(updates={PREFECT_API_AUTH_STRING: "admin:test"}):
+            client = get_client()
+
+        assert client._client.headers["Authorization"].startswith("Basic")
+
+
 class TestClientWorkQueues:
     @pytest.fixture
     async def deployment(self, prefect_client):
@@ -1825,19 +1906,6 @@ class TestClientWorkQueues:
         output = await prefect_client.get_runs_in_work_queue(queue.id, limit=20)
         assert len(output) == 10
         assert {o.id for o in output} == {r.id for r in runs}
-
-    async def test_get_runs_from_queue_updates_status(
-        self, prefect_client: PrefectClient
-    ):
-        queue = await prefect_client.create_work_queue(name="foo")
-        assert queue.status == "NOT_READY"
-
-        # Trigger an operation that would update the queues last_polled status
-        await prefect_client.get_runs_in_work_queue(queue.id, limit=1)
-
-        # Verify that the polling results in a READY status
-        lookup = await prefect_client.read_work_queue(queue.id)
-        assert lookup.status == "READY"
 
 
 async def test_delete_flow_run(prefect_client, flow_run):

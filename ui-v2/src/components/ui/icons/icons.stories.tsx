@@ -1,5 +1,6 @@
 import { Label } from "@/components/ui/label";
 import type { Meta, StoryObj } from "@storybook/react";
+import type { JSX } from "react";
 
 import { ICONS, type IconId } from "./constants";
 import { Icon } from "./icon";
@@ -10,15 +11,12 @@ const meta: Meta<typeof Icon> = {
 	args: {
 		id: "Ban",
 	},
+	render: () => <IconCatalog />,
 };
 
 export default meta;
 
-type Story = StoryObj<typeof Icon>;
-
-export const Icons: Story = {
-	render: () => <IconCatalog />,
-};
+export const story: StoryObj = { name: "Icon" };
 
 function IconCatalog(): JSX.Element {
 	return (
@@ -44,7 +42,3 @@ function IconCatalog(): JSX.Element {
 		</div>
 	);
 }
-
-export const Usage: Story = {
-	args: { id: "Ban" },
-};

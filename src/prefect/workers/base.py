@@ -18,7 +18,6 @@ from typing_extensions import Literal
 import prefect
 from prefect._internal.schemas.validators import return_v_or_none
 from prefect.client.base import ServerType
-from prefect.client.cloud import CloudClient, get_cloud_client
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.objects import (
@@ -53,6 +52,7 @@ from prefect.states import (
     Pending,
     exception_to_failed_state,
 )
+from prefect.types import KeyValueLabels
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
 from prefect.utilities.services import critical_service_loop
@@ -440,7 +440,6 @@ class BaseWorker(abc.ABC):
         self._exit_stack: AsyncExitStack = AsyncExitStack()
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[PrefectClient] = None
-        self._cloud_client: Optional[CloudClient] = None
         self._last_polled_time: pendulum.DateTime = pendulum.now("utc")
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
@@ -635,11 +634,6 @@ class BaseWorker(abc.ABC):
 
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self._runs_task_group)
-
-        if self._client.server_type == ServerType.CLOUD:
-            self._cloud_client = await self._exit_stack.enter_async_context(
-                get_cloud_client()
-            )
 
         self.is_setup = True
 
@@ -872,6 +866,9 @@ class BaseWorker(abc.ABC):
 
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
+                self._logger.debug(
+                    f"Skipping {flow_run.id} because it's already being submitted"
+                )
                 continue
             try:
                 if self._limiter:
@@ -951,7 +948,7 @@ class BaseWorker(abc.ABC):
             return
 
         ready_to_submit = await self._propose_pending_state(flow_run)
-
+        self._logger.debug(f"Ready to submit {flow_run.id}: {ready_to_submit}")
         if ready_to_submit:
             readiness_result = await self._runs_task_group.start(
                 self._submit_run_and_capture_errors, flow_run
@@ -975,10 +972,9 @@ class BaseWorker(abc.ABC):
             else:
                 # If the run is not ready to submit, release the concurrency slot
                 self._release_limit_slot(flow_run.id)
-
-            self._submitting_flow_run_ids.remove(flow_run.id)
         else:
             self._release_limit_slot(flow_run.id)
+        self._submitting_flow_run_ids.remove(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self, flow_run: "FlowRun", task_status: Optional[anyio.abc.TaskStatus] = None
@@ -989,6 +985,7 @@ class BaseWorker(abc.ABC):
             configuration = await self._get_configuration(flow_run)
             submitted_event = self._emit_flow_run_submitted_event(configuration)
             await self._give_worker_labels_to_flow_run(flow_run.id)
+
             result = await self.run(
                 flow_run=flow_run,
                 task_status=task_status,
@@ -1002,9 +999,8 @@ class BaseWorker(abc.ABC):
                 )
                 # Mark the task as started to prevent agent crash
                 task_status.started(exc)
-                await self._propose_crashed_state(
-                    flow_run, "Flow run could not be submitted to infrastructure"
-                )
+                message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
+                await self._propose_crashed_state(flow_run, message)
             else:
                 run_logger.exception(
                     f"An error occurred while monitoring flow run '{flow_run.id}'. "
@@ -1108,6 +1104,7 @@ class BaseWorker(abc.ABC):
                     f"Server sent an abort signal: {exc}"
                 ),
             )
+
             return False
         except Exception:
             run_logger.exception(
@@ -1221,14 +1218,21 @@ class BaseWorker(abc.ABC):
         """
         Give this worker's identifying labels to the specified flow run.
         """
-        if self._cloud_client:
-            await self._cloud_client.update_flow_run_labels(
-                flow_run_id,
-                {
-                    "prefect.worker.name": self.name,
-                    "prefect.worker.type": self.type,
-                },
-            )
+        if self._client:
+            labels: KeyValueLabels = {
+                "prefect.worker.name": self.name,
+                "prefect.worker.type": self.type,
+            }
+
+            if self._work_pool:
+                labels.update(
+                    {
+                        "prefect.work-pool.name": self._work_pool.name,
+                        "prefect.work-pool.id": str(self._work_pool.id),
+                    }
+                )
+
+            await self._client.update_flow_run_labels(flow_run_id, labels)
 
     async def __aenter__(self):
         self._logger.debug("Entering worker context...")

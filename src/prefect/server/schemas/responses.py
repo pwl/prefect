@@ -3,12 +3,11 @@ Schemas for special responses from the Prefect REST API.
 """
 
 import datetime
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, ClassVar, Dict, List, Optional, Type, Union
 from uuid import UUID
 
 import pendulum
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self
 
 import prefect.server.schemas as schemas
@@ -19,7 +18,7 @@ from prefect.server.schemas.core import (
     WorkQueueStatusDetail,
 )
 from prefect.server.utilities.schemas.bases import ORMBaseModel, PrefectBaseModel
-from prefect.types import KeyValueLabelsField
+from prefect.types import DateTime, KeyValueLabelsField
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
 
@@ -166,7 +165,7 @@ class OrchestrationResult(PrefectBaseModel):
 
 
 class WorkerFlowRunResponse(PrefectBaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     work_pool_id: UUID
     work_queue_id: UUID

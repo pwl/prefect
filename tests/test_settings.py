@@ -67,6 +67,7 @@ from prefect.utilities.collections import get_from_dict, set_in_dict
 from prefect.utilities.filesystem import tmpchdir
 
 SUPPORTED_SETTINGS = {
+    "PREFECT_API_AUTH_STRING": {"test_value": "admin:admin"},
     "PREFECT_API_BLOCKS_REGISTER_ON_START": {"test_value": True, "legacy": True},
     "PREFECT_API_DATABASE_CONNECTION_TIMEOUT": {"test_value": 10.0, "legacy": True},
     "PREFECT_API_DATABASE_CONNECTION_URL": {"test_value": "sqlite:///", "legacy": True},
@@ -193,6 +194,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_CLI_PROMPT": {"test_value": True},
     "PREFECT_CLI_WRAP_LINES": {"test_value": True},
     "PREFECT_CLOUD_API_URL": {"test_value": "https://cloud.prefect.io"},
+    "PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY": {"test_value": True},
     "PREFECT_CLOUD_UI_URL": {"test_value": "https://cloud.prefect.io"},
     "PREFECT_DEBUG_MODE": {"test_value": True},
     "PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE": {"test_value": "prefect", "legacy": True},
@@ -229,8 +231,8 @@ SUPPORTED_SETTINGS = {
     },
     "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {"test_value": 10, "legacy": True},
     "PREFECT_EXPERIMENTAL_WARN": {"test_value": True, "legacy": True},
-    "PREFECT_EXPERIMENTS_TELEMETRY_ENABLED": {"test_value": False},
     "PREFECT_EXPERIMENTS_WARN": {"test_value": True},
+    "PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED": {"test_value": True},
     "PREFECT_FLOW_DEFAULT_RETRIES": {"test_value": 10, "legacy": True},
     "PREFECT_FLOWS_DEFAULT_RETRIES": {"test_value": 10},
     "PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10, "legacy": True},
@@ -267,6 +269,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_RESULTS_DEFAULT_STORAGE_BLOCK": {"test_value": "block"},
     "PREFECT_RESULTS_LOCAL_STORAGE_PATH": {"test_value": Path("/path/to/storage")},
     "PREFECT_RESULTS_PERSIST_BY_DEFAULT": {"test_value": True},
+    "PREFECT_RUNNER_HEARTBEAT_FREQUENCY": {"test_value": 30},
     "PREFECT_RUNNER_POLL_FREQUENCY": {"test_value": 10},
     "PREFECT_RUNNER_PROCESS_LIMIT": {"test_value": 10},
     "PREFECT_RUNNER_SERVER_ENABLE": {"test_value": True},
@@ -275,6 +278,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE": {"test_value": 10},
     "PREFECT_RUNNER_SERVER_PORT": {"test_value": 8080},
     "PREFECT_SERVER_ALLOW_EPHEMERAL_MODE": {"test_value": True, "legacy": True},
+    "PREFECT_SERVER_API_AUTH_STRING": {"test_value": "admin:admin"},
     "PREFECT_SERVER_ANALYTICS_ENABLED": {"test_value": True},
     "PREFECT_SERVER_API_CORS_ALLOWED_HEADERS": {"test_value": "foo"},
     "PREFECT_SERVER_API_CORS_ALLOWED_METHODS": {"test_value": "foo"},

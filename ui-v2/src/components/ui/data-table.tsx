@@ -1,4 +1,11 @@
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import {
 	Table,
 	TableBody,
 	TableCell,
@@ -6,23 +13,16 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { type Table as TanstackTable, flexRender } from "@tanstack/react-table";
 
 import {
 	Pagination,
 	PaginationContent,
+	PaginationFirstButton,
 	PaginationItem,
+	PaginationLastButton,
 	PaginationNextButton,
 	PaginationPreviousButton,
-	PaginationFirstButton,
-	PaginationLastButton,
 } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +39,17 @@ export function DataTable<TData>({
 						{table.getHeaderGroups().map((headerGroup) => (
 							<TableRow key={headerGroup.id}>
 								{headerGroup.headers.map((header) => (
-									<TableHead key={header.id}>
+									<TableHead
+										key={header.id}
+										style={{
+											...(header.column.columnDef.maxSize && {
+												maxWidth: `${header.column.columnDef.maxSize}px`,
+											}),
+											...(header.column.columnDef.size && {
+												width: `${header.column.columnDef.size}px`,
+											}),
+										}}
+									>
 										{header.isPlaceholder
 											? null
 											: flexRender(
@@ -62,7 +72,12 @@ export function DataTable<TData>({
 										<TableCell
 											key={cell.id}
 											style={{
-												maxWidth: `${cell.column.columnDef.maxSize}px`,
+												...(cell.column.columnDef.maxSize && {
+													maxWidth: `${cell.column.columnDef.maxSize}px`,
+												}),
+												...(cell.column.columnDef.size && {
+													width: `${cell.column.columnDef.size}px`,
+												}),
 											}}
 										>
 											{flexRender(

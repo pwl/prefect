@@ -1,6 +1,8 @@
 import {
 	AlignVerticalJustifyStart,
 	Ban,
+	Bot,
+	Calendar,
 	Check,
 	ChevronDown,
 	ChevronLeft,
@@ -8,6 +10,7 @@ import {
 	ChevronsLeft,
 	ChevronsRight,
 	CircleArrowOutUpRight,
+	CircleCheck,
 	Clock,
 	ExternalLink,
 	Loader2,
@@ -17,15 +20,19 @@ import {
 	Pause,
 	Play,
 	Plus,
+	Rocket,
 	Search,
 	ServerCrash,
 	Variable,
+	Workflow,
 	X,
 } from "lucide-react";
 
 export const ICONS = {
 	AlignVerticalJustifyStart,
 	Ban,
+	Bot,
+	Calendar,
 	Check,
 	ChevronDown,
 	ChevronLeft,
@@ -33,6 +40,7 @@ export const ICONS = {
 	ChevronsLeft,
 	ChevronsRight,
 	CircleArrowOutUpRight,
+	CircleCheck,
 	Clock,
 	ExternalLink,
 	Loader2,
@@ -42,9 +50,11 @@ export const ICONS = {
 	Pause,
 	Play,
 	Plus,
+	Rocket,
 	Search,
 	ServerCrash,
 	Variable,
+	Workflow,
 	X,
 } as const;
 
